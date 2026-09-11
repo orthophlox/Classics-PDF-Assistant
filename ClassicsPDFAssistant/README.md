@@ -29,6 +29,13 @@ tessdata. The Xcode project's build phase then embeds that output into the
 app bundle's `Resources/PdfBackend`. See that script's comments and
 `../docs/ARCHITECTURE.md` for what is and isn't verifiable outside macOS.
 
+For a one-command build all the way to a distributable `.dmg` (this step,
+`xcodegen generate`, and the `xcodebuild`/`hdiutil` packaging), see
+`../scripts/build_dmg.sh` and the root `README.md`'s "맥에서 dmg로 바로
+실행할 수 있나요?" section. No entitlement is set here for App Sandbox — see
+`ClassicsPDFAssistant/Resources/ClassicsPDFAssistant.entitlements`'s comment
+for why, if you're considering Mac App Store distribution later.
+
 ## Source layout
 
 - `App/` — app entry point and `AppState` (the single source of truth for
