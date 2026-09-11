@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>com.apple.security.app-sandbox</key>
+	<true/>
+	<!--
+	The app launches its bundled pdf_backend_cli helper (Process/NSTask) for
+	every processing command. A sandboxed app's own bundled executables can
+	be launched without an extra entitlement, but this pairing (App Sandbox
+	+ a heavy PyInstaller-frozen child process doing its own file I/O) has
+	not been exercised or verified on a real Mac in this repository — see
+	docs/ARCHITECTURE.md "What's built vs. designed-only". If sandboxed
+	launch/IPC turns out to be a problem in practice, the fallback is an XPC
+	service wrapping the same backend, or dropping app-sandbox for a
+	Developer ID (non-App Store) distribution.
+	-->
+	<key>com.apple.security.files.user-selected.read-write</key>
+	<true/>
+	<key>com.apple.security.files.downloads.read-write</key>
+	<true/>
+	<key>com.apple.security.temporary-exception.files.absolute-path.read-write</key>
+	<array>
+		<string>/tmp/</string>
+	</array>
+</dict>
+</plist>

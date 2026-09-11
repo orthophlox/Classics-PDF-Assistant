@@ -1,0 +1,17 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+*.egg-info/
+dist/
+build/
+
+# PyInstaller output
+backend/packaging/dist/
+backend/packaging/build/
+backend/packaging/tessdata/
+
+# Xcode
+ClassicsPDFAssistant/*.xcodeproj/
+ClassicsPDFAssistant/DerivedData/
+.DS_Store
