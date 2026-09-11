@@ -64,8 +64,16 @@ def analyze(
             h, w = working.shape[:2]
             if options.auto_crop:
                 padding_px = int(round(options.crop_padding_pt * points_to_dpi_scale(options.dpi)))
-                detected_box = crop.detect_text_region(working, padding=padding_px)
+                regions = crop.detect_regions(working, padding=padding_px)
+                # The main_text region is what OCR actually uses by default
+                # (detected_crop_box, unchanged shape from before this
+                # feature existed); apparatus/margin regions ride along in
+                # detected_regions purely for the UI to display and let the
+                # user pick a different region as the crop, or adjust it —
+                # see docs/ARCHITECTURE.md "Multi-region detection".
+                detected_box = next(r.bbox for r in regions if r.region_type == "main_text")
             else:
+                regions = []
                 detected_box = BoundingBox(x=0, y=0, width=w, height=h)
 
             preview_path = os.path.join(work_dir, f"page-{i}.png")
@@ -79,6 +87,7 @@ def analyze(
                     detected_crop_box=detected_box,
                     image_width=w,
                     image_height=h,
+                    detected_regions=regions,
                 )
             )
             if on_progress:

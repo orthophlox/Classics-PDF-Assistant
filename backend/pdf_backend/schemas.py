@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from .crop import Region
 from .geometry import BoundingBox
 
 
@@ -85,6 +86,7 @@ class PageAnalysis:
     detected_crop_box: BoundingBox
     image_width: int
     image_height: int
+    detected_regions: list[Region] = field(default_factory=list)
 
     def to_dict(self) -> dict:
         return {
@@ -92,6 +94,7 @@ class PageAnalysis:
             "preview_image": self.preview_image,
             "skew_angle_deg": self.skew_angle_deg,
             "detected_crop_box": self.detected_crop_box.to_dict(),
+            "detected_regions": [r.to_dict() for r in self.detected_regions],
             "image_width": self.image_width,
             "image_height": self.image_height,
         }

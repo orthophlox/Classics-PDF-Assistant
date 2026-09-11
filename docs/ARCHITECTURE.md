@@ -3,7 +3,8 @@
 Classics PDF Assistant is a macOS-native SwiftUI app for turning scanned PDFs of
 classical texts (mixed Ancient Greek / Latin / English) into deskewed, cropped,
 searchable PDFs — with an OCR-correction pass, plain-text/PDF-A export, batch
-processing, and bibliography-based auto-rename.
+processing, bibliography-based auto-rename, multi-region crop detection for
+critical editions, and a one-click handoff to Zotero.
 
 ## Two-process design
 
@@ -69,11 +70,53 @@ expanded canvas so corners aren't clipped.
 
 ## Crop (text-region detection)
 
-Pure function (`crop.py`), independent of deskew and OCR, unit-tested against
-synthetic images: Otsu threshold → morphological open (remove speckle) →
-close (merge text lines/paragraphs into one mass, while still excluding thin
-scanner-bed border artifacts) → contour filtering (drop border-touching
-noise) → union bounding box + configurable padding.
+Pure functions (`crop.py`), independent of deskew and OCR, unit-tested
+against synthetic images: Otsu threshold → close (merge glyphs into
+lines/paragraphs into blocks, while still excluding thin scanner-bed border
+artifacts via the RETR_CCOMP hole-topology handling described in the code) →
+contour filtering (drop border-touching noise). No morphological opening/
+denoising step: a fixed kernel aggressive enough to remove real scanner dust
+also erases the thin strokes of small-point-size text outright, which matters
+once apparatus/margin text (smaller than the main text) needs to survive
+detection — noise robustness instead comes from the per-block area filters.
+
+`detect_text_region` unions every detected block into one box — the
+original, simple behavior a plain scanned page needs.
+
+### Multi-region detection (critical editions)
+
+`detect_regions` classifies the same blocks instead of unioning them, for
+critical editions where the apparatus and marginal line numbers should be
+excluded from OCR rather than merged into the crop:
+
+- **main_text**: the single largest block by area.
+- **apparatus**: block(s) positioned below main_text and roughly as wide as
+  it. Classified by *position*, not estimated font size — far more robust to
+  read off a block's own bounding box than trying to measure glyph height.
+- **margin_left** / **margin_right**: block(s) narrower than main_text,
+  vertically overlapping it, positioned entirely to its left/right.
+- **other**: anything left over (a running header, a footer/page number) —
+  kept and labeled rather than silently dropped, so the UI can still show it.
+
+Margin line numbers get their own, more sensitive second detection pass
+(`_MARGIN_MIN_CONTOUR_AREA_FRACTION`, far lower than the main threshold, plus
+a minimum-pixel-dimension floor against anti-aliasing dust): a lone numeral
+is individually far smaller than the main-text/apparatus area threshold
+would allow through, and — unlike apparatus or main text — margin numbers
+don't reliably merge into one bigger blob, since editions typically number
+every 5th or 10th line rather than every line.
+
+A plain page with no apparatus/margin content naturally yields a single
+`main_text` region equal to what `detect_text_region` would have returned,
+so `detect_regions` is a strict superset, not a separate code path a plain
+document has to fall through correctly. `pipeline.analyze()` always calls
+`detect_regions()`; `detected_crop_box` (what `ocr`/`finalize` use by
+default) is simply the `main_text` region's box, while the full
+classification rides along in `detected_regions` for the crop-review UI —
+see `docs/JSON_PROTOCOL.md`'s `analyze` response. The Swift crop overlay
+draws each detected region with its own label/color and lets the user tap
+one to make it "the" crop, or drag-adjust any of them, using the same
+overlay editor either way.
 
 ## Bibliographic auto-rename
 
@@ -96,6 +139,33 @@ compliance — a full Ghostscript-based conversion was considered and rejected
 for this app because it requires bundling a second heavy native binary
 alongside Tesseract, roughly doubling native-dependency packaging complexity
 for a feature that's a nice-to-have, not a core requirement.
+
+## Zotero handoff
+
+A finished document can be sent straight to a running Zotero desktop app via
+its local Connector HTTP server (`http://127.0.0.1:23119`) — the same
+mechanism the official browser extension uses to save pages, so no API key
+or internet connection is needed, and the item appears in the library
+immediately. This is pure Swift (`ZoteroService.swift`, `URLSession` only);
+it doesn't involve the Python backend at all.
+
+Flow: `POST /connector/ping` first (confirms Zotero is running and the
+connector server is reachable — a normal, expected failure mode if the user
+hasn't launched Zotero, surfaced as a clear error rather than a hung
+request), then `POST /connector/saveItems` with a `document`-type item
+carrying the title/author/year gathered during the rename step and the
+finalized PDF as a file attachment.
+
+**Caveat, stated plainly**: the Connector protocol is not officially
+published API documentation the way the Zotero Web API is — it's the
+internal protocol Zotero's own browser extensions speak to Zotero desktop,
+long-stable and used by several third-party integrations, but Zotero could
+change it in a future release without notice. `ZoteroService.swift`'s
+request-building is isolated in one place specifically so it's a small,
+findable edit if a Zotero update ever changes the expected shape. This
+tradeoff — zero-setup local integration vs. the officially documented but
+credential-requiring Web API — was a deliberate choice; see the code comment
+at the top of `ZoteroService.swift` before changing it.
 
 ## What's built vs. designed-only in this repository
 

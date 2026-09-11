@@ -50,6 +50,19 @@ Fast, no OCR. Rasterizes each page, runs deskew angle detection and text-region
 crop detection. Used immediately after import so the UI can show a before/after
 preview and let the user adjust crop boxes before committing to the slow OCR step.
 
+Crop detection classifies the page into named regions — `main_text`, and,
+for critical editions, `apparatus` (critical apparatus below the main text),
+`margin_left`/`margin_right` (marginal line numbers), and `other` (anything
+left over, e.g. a running header) — so the apparatus and margin numbers can
+be excluded from OCR rather than swept into one crop box. `detected_crop_box`
+is always the `main_text` region's box (unchanged shape from before this
+existed, so it's still what `ocr`/`finalize` use by default); `detected_regions`
+carries the full classification for the crop-review UI to display, and lets
+the user pick a different region as the crop (or adjust any of them) before
+committing to OCR. A plain page with no apparatus/margin content yields a
+single `main_text` region equal to `detected_crop_box`. See
+docs/ARCHITECTURE.md "Multi-region detection (critical editions)".
+
 **Request**
 ```jsonc
 {
@@ -71,6 +84,11 @@ preview and let the user adjust crop boxes before committing to the slow OCR ste
       "preview_image": "/tmp/classics-pdf/doc123/page-0.png",
       "skew_angle_deg": -1.3,
       "detected_crop_box": { "x": 10, "y": 12, "width": 500, "height": 700 },
+      "detected_regions": [
+        { "region_type": "main_text", "bbox": { "x": 10, "y": 12, "width": 500, "height": 700 } },
+        { "region_type": "apparatus", "bbox": { "x": 10, "y": 730, "width": 500, "height": 120 } },
+        { "region_type": "margin_left", "bbox": { "x": 0, "y": 12, "width": 8, "height": 700 } }
+      ],
       "image_width": 2550,
       "image_height": 3300
     }

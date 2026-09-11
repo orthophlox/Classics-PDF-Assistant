@@ -37,6 +37,62 @@ def make_text_page(
     return img
 
 
+def make_critical_edition_page(
+    width: int = 1200,
+    height: int = 1600,
+    main_text_x: int = 300,
+    main_text_width: int = 650,
+    main_text_top: int = 150,
+    main_text_bottom: int = 1100,
+    apparatus_top: int = 1200,
+    apparatus_bottom: int = 1500,
+    margin_gap: int = 60,
+    margin_number_width: int = 40,
+) -> Image.Image:
+    """A synthetic critical-edition page: a main text column, a smaller-font
+    critical apparatus block below it, and narrow line-number columns in the
+    left and right margins — well-separated so detect_regions has a clean
+    case to classify, for testing multi-region detection independent of any
+    real edition's actual layout.
+    """
+    img = Image.new("L", (width, height), color=255)
+    draw = ImageDraw.Draw(img)
+
+    body_font = _font(28)
+    y = main_text_top
+    line_index = 0
+    while y < main_text_bottom - 30:
+        draw.text((main_text_x, y), f"Textus principalis linea {line_index}", fill=0, font=body_font)
+        line_index += 1
+        y += 45
+
+    # Margin line numbers: small numerals every few lines, well clear of
+    # the main text column on both sides.
+    margin_font = _font(16)
+    margin_left_x = main_text_x - margin_gap - margin_number_width
+    margin_right_x = main_text_x + main_text_width + margin_gap
+    for n, ly in enumerate(range(main_text_top, main_text_bottom - 30, 45 * 5), start=1):
+        draw.text((margin_left_x, ly), str(n * 5), fill=0, font=margin_font)
+        draw.text((margin_right_x, ly), str(n * 5), fill=0, font=margin_font)
+
+    # Critical apparatus: smaller font, spans roughly the same width as the
+    # main text column, positioned below it with a clear gap.
+    apparatus_font = _font(14)
+    ay = apparatus_top
+    apparatus_index = 0
+    while ay < apparatus_bottom - 16:
+        draw.text(
+            (main_text_x - 20, ay),
+            f"{apparatus_index + 1} lemma] varia lectio codicis testis {apparatus_index}",
+            fill=0,
+            font=apparatus_font,
+        )
+        apparatus_index += 1
+        ay += 22
+
+    return img
+
+
 def rotate_page(img: Image.Image, angle_deg: float) -> Image.Image:
     """Rotate with white fill and an expanded canvas, mimicking a skewed scan."""
     return img.rotate(-angle_deg, expand=True, fillcolor=255, resample=Image.BICUBIC)

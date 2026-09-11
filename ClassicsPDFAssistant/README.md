@@ -37,5 +37,9 @@ app bundle's `Resources/PdfBackend`. See that script's comments and
   app-local state (`DocumentItem`, `DocumentStatus`).
 - `Backend/` — `BackendService` (the `Process`/JSON subprocess wrapper) and
   `BackendLocator` (bundled vs. dev-fallback executable resolution).
+- `Services/` — `ZoteroService`, a standalone Swift-only (no Python backend
+  involved) integration with a locally running Zotero desktop app; see its
+  file header and `../docs/ARCHITECTURE.md` "Zotero handoff" before editing
+  the request shapes, since it speaks an unofficial protocol.
 - `Views/` — one view per pipeline stage, routed by `DocumentItem.status`
   in `ContentView`. See file-level doc comments for what each does.

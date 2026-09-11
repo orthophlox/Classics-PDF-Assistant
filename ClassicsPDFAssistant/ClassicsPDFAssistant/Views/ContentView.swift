@@ -71,7 +71,7 @@ private struct DocumentDetailView: View {
             ProcessingProgressView(title: "Writing output files…", detail: nil, progress: nil)
 
         case .done(let outputs):
-            DocumentDoneView(outputs: outputs)
+            DocumentDoneView(document: document, outputs: outputs)
 
         case .error(let message):
             VStack(spacing: 12) {
@@ -147,7 +147,17 @@ private struct CropReviewView: View {
 }
 
 private struct DocumentDoneView: View {
+    @ObservedObject var document: DocumentItem
     let outputs: FinalizeOutputs
+
+    @State private var zoteroStatus: ZoteroStatus = .idle
+
+    private enum ZoteroStatus: Equatable {
+        case idle
+        case sending
+        case sent
+        case failed(String)
+    }
 
     var body: some View {
         VStack(spacing: 16) {
@@ -167,6 +177,10 @@ private struct DocumentDoneView: View {
                     outputRow("PDF/A", path)
                 }
             }
+
+            if outputs.searchablePdf != nil {
+                zoteroSection
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -177,6 +191,55 @@ private struct DocumentDoneView: View {
             Text(path).lineLimit(1).truncationMode(.middle)
             Button("Reveal in Finder") {
                 NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)])
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var zoteroSection: some View {
+        VStack(spacing: 6) {
+            switch zoteroStatus {
+            case .idle, .sending:
+                Button {
+                    sendToZotero()
+                } label: {
+                    Label("Send to Zotero", systemImage: "books.vertical")
+                }
+                .disabled(zoteroStatus == .sending)
+            case .sent:
+                Label("Sent to Zotero", systemImage: "checkmark.circle")
+                    .foregroundStyle(.green)
+            case .failed(let message):
+                VStack(spacing: 4) {
+                    Label("Zotero로 보내지 못했습니다", systemImage: "exclamationmark.triangle")
+                        .foregroundStyle(.red)
+                    Text(message)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: 360)
+                    Button("다시 시도") { sendToZotero() }
+                }
+            }
+        }
+    }
+
+    private func sendToZotero() {
+        guard let pdfPath = outputs.searchablePdf else { return }
+        zoteroStatus = .sending
+        Task {
+            do {
+                try await ZoteroService.saveItem(
+                    title: document.selectedTitle,
+                    author: document.selectedAuthor,
+                    year: document.selectedYear,
+                    pdfURL: URL(fileURLWithPath: pdfPath)
+                )
+                await MainActor.run { zoteroStatus = .sent }
+            } catch {
+                await MainActor.run {
+                    zoteroStatus = .failed(error.localizedDescription)
+                }
             }
         }
     }

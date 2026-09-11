@@ -16,6 +16,11 @@ struct PageAnalysis: Codable, Identifiable {
     var detectedCropBox: BoundingBox
     var imageWidth: Int
     var imageHeight: Int
+    /// Full region classification (main text / apparatus / margins / other)
+    /// for critical editions — detectedCropBox is always the main_text
+    /// region's box; this is the richer data the crop-review UI displays.
+    /// See docs/ARCHITECTURE.md "Multi-region detection".
+    var detectedRegions: [Region] = []
 }
 
 struct AnalyzeResponse: BackendResponseEnvelope {

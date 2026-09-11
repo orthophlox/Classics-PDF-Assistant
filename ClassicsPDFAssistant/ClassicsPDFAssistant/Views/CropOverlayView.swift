@@ -23,6 +23,16 @@ struct CropOverlayView: View {
             }
 
             if imageFrame != .zero {
+                // Every other detected region (apparatus, margins, other) is
+                // shown as a labeled, tappable outline underneath the active
+                // crop rectangle — tapping one makes it "the" crop, for
+                // critical editions where auto-detection may have picked the
+                // wrong block as main_text, or where the user simply wants
+                // to OCR the apparatus instead of the main text on this page.
+                ForEach(nonActiveRegions) { region in
+                    otherRegionView(region, in: imageFrame)
+                }
+
                 let rect = viewRect(for: cropBox, in: imageFrame)
                 Rectangle()
                     .stroke(Color.accentColor, lineWidth: 2)
@@ -42,6 +52,49 @@ struct CropOverlayView: View {
             }
             .padding(8)
         }
+        .overlay(alignment: .topTrailing) {
+            if page.detectedRegions.count > 1 {
+                regionLegend
+            }
+        }
+    }
+
+    /// Detected regions whose bbox isn't (approximately) the currently
+    /// active crop box — avoids drawing a second outline directly on top of
+    /// the editable one when the user hasn't diverged from a region yet.
+    private var nonActiveRegions: [Region] {
+        page.detectedRegions.filter { $0.bbox != cropBox }
+    }
+
+    @ViewBuilder
+    private func otherRegionView(_ region: Region, in frame: CGRect) -> some View {
+        let rect = viewRect(for: region.bbox, in: frame)
+        Rectangle()
+            .strokeBorder(region.regionType.color, style: StrokeStyle(lineWidth: 1.5, dash: [5, 3]))
+            .frame(width: rect.width, height: rect.height)
+            .position(x: rect.midX, y: rect.midY)
+            .contentShape(Rectangle())
+            .onTapGesture {
+                cropBox = region.bbox
+            }
+            .help("Use \(region.regionType.displayName) as the OCR crop")
+    }
+
+    private var regionLegend: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            ForEach(page.detectedRegions) { region in
+                HStack(spacing: 6) {
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(region.regionType.color)
+                        .frame(width: 10, height: 10)
+                    Text(region.regionType.displayName)
+                        .font(.caption)
+                }
+            }
+        }
+        .padding(8)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
+        .padding(8)
     }
 
     // MARK: - Coordinate conversion
