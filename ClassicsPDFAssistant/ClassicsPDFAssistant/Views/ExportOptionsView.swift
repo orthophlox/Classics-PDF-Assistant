@@ -1,8 +1,8 @@
 import SwiftUI
 
-/// Export-format toggles: plain-text export and lightweight PDF/A
-/// (features 6 and 7). The searchable PDF itself is always produced — it's
-/// the core deliverable, not an optional extra.
+/// Export-format toggles: plain-text export, lightweight PDF/A, and a
+/// black & white (bi-level) output-image option. The searchable PDF itself
+/// is always produced — it's the core deliverable, not an optional extra.
 struct ExportOptionsView: View {
     @Binding var options: FinalizeOptions
     @Binding var outputDirectory: URL
@@ -13,6 +13,13 @@ struct ExportOptionsView: View {
             Section("Also export") {
                 Toggle("Plain text (.txt)", isOn: $options.plainText)
                 Toggle("PDF/A (lightweight, metadata + ICC only)", isOn: $options.pdfA)
+            }
+
+            Section("Page images") {
+                Toggle("Black & white (bi-level)", isOn: $options.bw)
+                Text("Converts scanned pages to pure black/white instead of grayscale — smaller files, same OCR accuracy (OCR already ran on the original scan).")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
 
             Section("Save to") {

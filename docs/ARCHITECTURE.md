@@ -131,6 +131,18 @@ template is applied and sanitized for the filesystem. In `batch` mode (no UI),
 the top candidate of each is applied directly, falling back to the original
 filename when no candidates were found.
 
+## Black & white export
+
+`options.bw` on `finalize`/`batch` converts each page's output image to
+bi-level black/white via Otsu threshold (`pdf_io.to_bw`) — a plain scanner's
+"B&W" mode, as opposed to grayscale (which keeps intermediate shades). This
+is applied only to the image embedded in the final PDF; OCR (in the `ocr`
+command, which already ran before `finalize` sees the page) always sees the
+original grayscale/color rasterization, since Tesseract's own adaptive
+binarization outperforms a single global threshold. The main practical
+effect besides visual appearance is file size: a bi-level PNG compresses far
+better than a grayscale or color scan.
+
 ## PDF/A export
 
 Deliberately lightweight: `pikepdf` writes XMP metadata and an sRGB ICC output

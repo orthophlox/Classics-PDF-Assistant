@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import cv2
 import numpy as np
 import pymupdf
 from PIL import Image
 
+from .deskew import to_gray
 from .geometry import points_to_dpi_scale
 
 
@@ -33,6 +35,23 @@ def np_to_pil(image: np.ndarray) -> Image.Image:
 
 def save_png(image: np.ndarray, path: str) -> None:
     np_to_pil(image).save(path, format="PNG")
+
+
+def to_bw(image: np.ndarray) -> np.ndarray:
+    """Bi-level (pure black/white) conversion via Otsu threshold, for the
+    "Black & white" export toggle — black ink on a white background, the
+    same sense a "B&W scan" mode means, as opposed to grayscale (which keeps
+    intermediate shades). Deliberately not the inverted binarization
+    crop.py/deskew.py use internally for ink-mass analysis: this is for
+    direct visual embedding in the output PDF, so ink must stay black (0),
+    background white (255). Only applied to the final output image, never
+    to what OCR runs against — Tesseract's own adaptive binarization does
+    better than a single global threshold, so OCR always sees the original
+    grayscale/color rasterization.
+    """
+    gray = to_gray(image)
+    _, binary = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    return binary
 
 
 def crop_np(image: np.ndarray, x: int, y: int, width: int, height: int) -> np.ndarray:

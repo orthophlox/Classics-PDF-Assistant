@@ -130,6 +130,7 @@ class FinalizeOptions:
     searchable_pdf: bool = True
     plain_text: bool = False
     pdf_a: bool = False
+    bw: bool = False  # black & white (bi-level) output images, see pdf_io.to_bw
 
     @classmethod
     def from_dict(cls, data: dict) -> "FinalizeOptions":
@@ -139,6 +140,7 @@ class FinalizeOptions:
             searchable_pdf=bool(d.get("searchable_pdf", True)),
             plain_text=bool(d.get("plain_text", False)),
             pdf_a=bool(d.get("pdf_a", False)),
+            bw=bool(d.get("bw", False)),
         )
 
 

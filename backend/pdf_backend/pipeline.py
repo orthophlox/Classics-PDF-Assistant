@@ -177,6 +177,12 @@ def finalize(
     try:
         for i, page_opt in enumerate(sorted_pages):
             image = _prepare_page_image(doc, page_opt, options.dpi)
+            if options.bw:
+                # Only the output image is binarized — OCR (ocr_document,
+                # above) always runs against the original grayscale/color
+                # rasterization, since Tesseract's own adaptive
+                # binarization outperforms a single global Otsu threshold.
+                image = pdf_io.to_bw(image)
             page_pdf_bytes = textlayer.build_page_pdf(image, page_opt.words, dpi=options.dpi)
             reader = pypdf.PdfReader(io.BytesIO(page_pdf_bytes))
             writer.append(reader)

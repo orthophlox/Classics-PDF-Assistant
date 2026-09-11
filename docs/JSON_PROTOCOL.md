@@ -142,6 +142,9 @@ Also runs bibliographic-metadata heuristics (`metadata.py`) against the first
 
 Given the (possibly user-corrected) word lists and export options, builds the
 invisible OCR text layer and writes output files. No OCR re-run — cheap and local.
+`options.bw` binarizes only the *output* page images (Otsu threshold, pure
+black ink on white) — OCR already ran (in `ocr`) against the original
+grayscale/color rasterization and is unaffected either way.
 
 **Request**
 ```jsonc
@@ -155,7 +158,8 @@ invisible OCR text layer and writes output files. No OCR re-run — cheap and lo
     "dpi": 300,
     "searchable_pdf": true,
     "plain_text": true,
-    "pdf_a": false
+    "pdf_a": false,
+    "bw": false   // black & white (bi-level, Otsu threshold) output images instead of grayscale/color
   },
   "pages": [ /* PageOptions[], words[] now holds corrected text */ ]
 }
@@ -191,7 +195,7 @@ JSON on stdout.
     { "input_pdf": "/path/b.pdf", "output_dir": "/path/out", "auto_rename": true }
   ],
   "languages": ["grc", "lat", "eng"],
-  "options": { "dpi": 300, "searchable_pdf": true, "plain_text": true, "pdf_a": false }
+  "options": { "dpi": 300, "searchable_pdf": true, "plain_text": true, "pdf_a": false, "bw": false }
 }
 ```
 
