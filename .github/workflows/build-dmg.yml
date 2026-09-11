@@ -1,0 +1,46 @@
+name: Build macOS DMG
+
+# Builds a double-click-installable .dmg on GitHub's macOS runners (which
+# already have Xcode + Homebrew) so a .dmg can be downloaded straight from
+# GitHub without anyone needing a terminal or a Mac to build it themselves.
+# See README.md "맥에서 dmg로 바로 실행할 수 있나요?" for the user-facing
+# download instructions this produces.
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Homebrew dependencies
+        run: |
+          brew install xcodegen
+          brew install tesseract tesseract-lang
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build .dmg
+        run: ./scripts/build_dmg.sh
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ClassicsPDFAssistant-dmg
+          path: dist/ClassicsPDFAssistant.dmg
+          if-no-files-found: error
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/ClassicsPDFAssistant.dmg
+          generate_release_notes: true

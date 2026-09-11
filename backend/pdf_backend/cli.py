@@ -19,6 +19,7 @@ import sys
 import tempfile
 
 from . import pipeline
+from .bundle import configure_bundled_tesseract
 from .schemas import AnalyzeOptions, FinalizeOptions, PageOptions
 
 
@@ -105,6 +106,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
+    configure_bundled_tesseract()
     parser = build_parser()
     args = parser.parse_args(argv)
 

@@ -8,10 +8,22 @@
 # `otool -L` / `install_name_tool`), which only makes sense on a real macOS
 # build machine. See docs/ARCHITECTURE.md.
 
+import glob
 import sys
 from pathlib import Path
 
 block_cipher = None
+
+# build_backend.sh's dylib-walking step (otool -L / install_name_tool)
+# copies the Homebrew tesseract binary plus every non-system dylib it
+# depends on into vendor/, flat, with internal load paths already rewritten
+# to @executable_path/<name> — so bundling is just "ship the whole
+# directory next to the frozen executable" (dest "." puts each file
+# alongside pdf_backend_cli in the onedir output, matching those rewritten
+# paths). Empty if build_backend.sh's vendoring step hasn't run yet, e.g. a
+# manual `pyinstaller pyinstaller.spec` for local testing of the pure-Python
+# parts — that build just won't have a working bundled tesseract.
+vendor_binaries = [(path, ".") for path in glob.glob("vendor/*")]
 
 # onedir (not onefile): more reliable for an OpenCV+Tesseract-heavy bundle —
 # avoids onefile's per-launch temp-extraction overhead and extra Gatekeeper/
@@ -19,10 +31,7 @@ block_cipher = None
 a = Analysis(
     ["../pdf_backend/cli.py"],
     pathex=["../"],
-    binaries=[
-        # Populated by build_backend.sh after `otool -L`-driven dylib
-        # resolution: (path/to/tesseract, "."), plus its shared libs.
-    ],
+    binaries=vendor_binaries,
     datas=[
         ("../pdf_backend/assets", "pdf_backend/assets"),  # DejaVuSans.ttf, sRGB.icc
         ("tessdata", "tessdata"),  # populated by fetch_tessdata.sh before this runs
