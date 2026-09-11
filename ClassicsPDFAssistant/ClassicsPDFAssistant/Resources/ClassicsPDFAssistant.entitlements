@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!--
+	App Sandbox is deliberately OFF. It only matters for Mac App Store
+	submission, which this project doesn't target (see scripts/build_dmg.sh
+	and README.md "Distributing a .dmg") — distribution here is a plain,
+	ad-hoc-or-Developer-ID-signed .dmg, same as most non-Store Mac apps.
+	Leaving it off also sidesteps real uncertainty this repo can't verify
+	without a Mac: the app launches its bundled pdf_backend_cli helper
+	(Process/NSTask) for every processing command, and that helper is a
+	large PyInstaller-frozen binary doing its own file I/O — sandboxing
+	that pairing has not been exercised on a real machine. If this app is
+	ever submitted to the Mac App Store, re-enabling
+	com.apple.security.app-sandbox and re-verifying the bundled-helper
+	launch under sandbox constraints (or moving the backend into an XPC
+	service) is a prerequisite, not an afterthought.
+
+	No entitlement keys are set below: the com.apple.security.files.*
+	grants only mean anything under App Sandbox, and without it the app has
+	normal, unrestricted filesystem access (same as any other
+	non-sandboxed Mac app) subject to the user's own macOS permissions.
+	-->
+</dict>
+</plist>

@@ -1,0 +1,66 @@
+name: ClassicsPDFAssistant
+options:
+  bundleIdPrefix: com.classicspdfassistant
+  deploymentTarget:
+    macOS: "13.0"
+  createIntermediateGroups: true
+
+settings:
+  base:
+    SWIFT_VERSION: "5.10"
+    MACOSX_DEPLOYMENT_TARGET: "13.0"
+    ENABLE_HARDENED_RUNTIME: YES
+
+targets:
+  ClassicsPDFAssistant:
+    type: application
+    platform: macOS
+    sources:
+      - path: ClassicsPDFAssistant
+        excludes:
+          - "Resources/Info.plist"
+          - "Resources/ClassicsPDFAssistant.entitlements"
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.classicspdfassistant.app
+        INFOPLIST_FILE: ClassicsPDFAssistant/Resources/Info.plist
+        CODE_SIGN_ENTITLEMENTS: ClassicsPDFAssistant/Resources/ClassicsPDFAssistant.entitlements
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        GENERATE_INFOPLIST_FILE: NO
+    info:
+      path: ClassicsPDFAssistant/Resources/Info.plist
+    entitlements:
+      path: ClassicsPDFAssistant/Resources/ClassicsPDFAssistant.entitlements
+    # The backend/packaging/build_backend.sh output (a onedir PyInstaller
+    # bundle containing pdf_backend_cli + tessdata) is copied into the app
+    # bundle's Resources/PdfBackend here, so BackendLocator finds it at
+    # runtime via Bundle.main. Run build_backend.sh manually (or wire it as
+    # a "Run Script Only When Installing" phase) before archiving a release
+    # build — running it on every debug build is unnecessarily slow.
+    postCompileScripts:
+      - name: "Embed pdf_backend_cli (run backend/packaging/build_backend.sh first)"
+        script: |
+          set -e
+          SRC="${SRCROOT}/../backend/packaging/dist/pdf_backend_cli"
+          DEST="${BUILT_PRODUCTS_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/PdfBackend"
+          if [ -d "$SRC" ]; then
+            mkdir -p "$DEST"
+            rsync -a --delete "$SRC/" "$DEST/"
+            if [ -d "${SRCROOT}/../backend/packaging/tessdata" ]; then
+              rsync -a "${SRCROOT}/../backend/packaging/tessdata/" "$DEST/tessdata/"
+            fi
+          else
+            echo "warning: $SRC not found — run backend/packaging/build_backend.sh first. Falling back to CLASSICS_PDF_ASSISTANT_REPO_ROOT dev mode at runtime."
+          fi
+
+schemes:
+  ClassicsPDFAssistant:
+    build:
+      targets:
+        ClassicsPDFAssistant: all
+    run:
+      config: Debug
+      environmentVariables:
+        # Dev fallback used by BackendLocator when no PyInstaller bundle has
+        # been embedded yet — see backend/README.md for venv setup.
+        CLASSICS_PDF_ASSISTANT_REPO_ROOT: "$(SRCROOT)/.."

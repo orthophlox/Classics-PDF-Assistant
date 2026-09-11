@@ -1,0 +1,27 @@
+[project]
+name = "pdf-backend"
+version = "0.1.0"
+description = "Deskew, OCR (grc/lat/eng), crop, metadata, and export engine for Classics PDF Assistant"
+requires-python = ">=3.10"
+dependencies = [
+    "opencv-python-headless>=4.9",
+    "numpy>=1.26",
+    "pytesseract>=0.3.10",
+    "pymupdf>=1.24",
+    "pypdf>=4.0",
+    "Pillow>=10.0",
+    "pikepdf>=8.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["pdf_backend*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
