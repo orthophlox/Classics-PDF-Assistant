@@ -17,6 +17,12 @@ struct ClassicsPDFAssistantApp: App {
                 }
                 .keyboardShortcut("o", modifiers: .command)
             }
+            CommandGroup(after: .appSettings) {
+                Divider()
+                Button("Uninstall Classics PDF Assistant…") {
+                    UninstallFlow.run()
+                }
+            }
         }
 
         Settings {

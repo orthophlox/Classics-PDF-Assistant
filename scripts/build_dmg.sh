@@ -82,6 +82,8 @@ trap 'rm -rf "$STAGING_DIR"' EXIT
 
 cp -R "$APP_PATH" "$STAGING_DIR/"
 ln -s /Applications "$STAGING_DIR/Applications"
+cp "$ROOT_DIR/scripts/Uninstall.command" "$STAGING_DIR/Uninstall.command"
+chmod +x "$STAGING_DIR/Uninstall.command"
 
 DMG_PATH="$DIST_DIR/$APP_NAME.dmg"
 rm -f "$DMG_PATH"
@@ -97,3 +99,6 @@ echo "This build is ad-hoc signed, not notarized — on first open, Gatekeeper"
 echo "will show an 'unidentified developer' warning. Right-click the app in"
 echo "Finder and choose Open (or System Settings > Privacy & Security >"
 echo "Open Anyway) once; subsequent launches are normal. See README.md."
+echo
+echo "The .dmg also includes Uninstall.command for a full removal later"
+echo "(settings + temp files + the app itself) — see README.md '제거하기'."

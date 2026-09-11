@@ -38,8 +38,10 @@ for why, if you're considering Mac App Store distribution later.
 
 ## Source layout
 
-- `App/` — app entry point and `AppState` (the single source of truth for
-  imported documents and their pipeline status).
+- `App/` — app entry point, `AppState` (the single source of truth for
+  imported documents and their pipeline status), and `UninstallFlow` (the
+  App-menu "Uninstall…" command; see `../scripts/Uninstall.command` for the
+  standalone script bundled in the `.dmg` that also removes the app itself).
 - `Models/` — Codable structs mirroring `../docs/JSON_PROTOCOL.md`, plus
   app-local state (`DocumentItem`, `DocumentStatus`).
 - `Backend/` — `BackendService` (the `Process`/JSON subprocess wrapper) and

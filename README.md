@@ -27,6 +27,9 @@
     후보를 추출해 `저자 - 제목 (연도).pdf` 형식의 파일명을 제안, 수정 후 적용
 11. **Zotero 연동** — 완료된 PDF를 로컬에서 실행 중인 Zotero 데스크톱 앱으로
     한 번에 전송 (API 키/인터넷 불필요)
+12. **깔끔한 제거(Clean Uninstall)** — 앱 메뉴의 "Uninstall…"로 설정과 임시
+    파일을 정리하거나, dmg에 동봉된 `Uninstall.command`로 앱 자체까지 한
+    번에 삭제. 내보낸 PDF 등 사용자 문서는 어느 쪽도 절대 건드리지 않음
 
 ## 아키텍처 한눈에 보기
 
@@ -62,21 +65,32 @@ Classics-PDF-Assistant/
 ├── docs/
 │   ├── ARCHITECTURE.md        # 설계 근거와 각 알고리즘 설명
 │   └── JSON_PROTOCOL.md       # Swift ↔ Python 통신 스펙
-└── scripts/
-    └── build_dmg.sh           # 소스 → .app → .dmg 전 과정을 자동화 (macOS 전용)
+├── scripts/
+│   ├── build_dmg.sh           # 소스 → .app → .dmg 전 과정을 자동화 (macOS 전용)
+│   └── Uninstall.command      # dmg에 동봉되는 완전 제거 스크립트 (macOS 전용)
+└── .github/workflows/
+    └── build-dmg.yml          # GitHub Actions로 .dmg를 자동 빌드 (터미널 없이 다운로드 가능)
 ```
 
 ---
 
 ## 맥에서 dmg로 바로 실행할 수 있나요?
 
-**아직 만들어진 .dmg 파일이 저장소에 포함되어 있지는 않습니다.** 이 저장소는
-소스 코드 상태이고, macOS + Xcode가 있는 실제 Mac에서 한 번 빌드해야
-`.dmg`가 만들어집니다 (이 개발 환경은 리눅스 샌드박스라 Xcode 자체가 없어서
-여기서는 빌드할 수 없었습니다). 다만 그 빌드 과정 전체를 스크립트
-하나로 자동화해 뒀으니, Mac에서 아래 순서대로 하면 됩니다.
+**저장소에 미리 빌드된 .dmg가 들어있지는 않지만, 터미널 없이 다운로드만으로
+받는 방법도 있습니다.** `.github/workflows/build-dmg.yml`이 GitHub의 macOS
+러너(Xcode·Homebrew가 이미 설치되어 있음)에서 자동으로 `.dmg`를 빌드합니다:
 
-### 사전 준비물 (Mac에서 한 번만)
+- **버전 태그가 푸시되면** 자동으로 빌드해서 저장소의 **Releases** 페이지에
+  `.dmg`를 올립니다 — Releases 탭에서 다운로드 → 더블클릭이면 끝, 터미널
+  전혀 필요 없습니다.
+- 태그 없이도 **Actions 탭 → "Build macOS DMG" → Run workflow** 버튼으로
+  언제든 수동 실행할 수 있습니다 (이 경우 결과물은 Release가 아니라 해당
+  실행의 "Artifacts"에서 다운로드).
+
+아래는 이 자동 빌드가 없을 때, 또는 직접 소스를 받아 Mac에서 빌드하고 싶을
+때의 방법입니다 — 빌드 과정 전체를 스크립트 하나로 자동화해 뒀습니다.
+
+### 사전 준비물 (Mac에서 한 번만, 직접 빌드할 경우)
 
 ```bash
 # Xcode 커맨드라인 도구 (Xcode.app은 App Store에서 미리 설치)
@@ -157,6 +171,21 @@ open ClassicsPDFAssistant.xcodeproj
 
 ---
 
+## 제거하기
+
+두 가지 방법이 있고, 둘 다 내보낸 PDF 등 사용자 문서는 절대 건드리지
+않습니다 (지우는 대상은 앱 자신의 설정/임시 파일/앱 번들뿐):
+
+- **앱 안에서**: 메뉴 막대의 "ClassicsPDFAssistant" 메뉴 →
+  **Uninstall Classics PDF Assistant…**. 저장된 설정(UserDefaults)과 임시
+  작업 파일을 지우고, Finder에서 앱을 선택해 보여줍니다 — 앱 자체는 직접
+  휴지통으로 드래그해서 마무리하면 됩니다. (실행 중인 앱이 자기 자신의
+  번들을 직접 지우는 건 불안정할 수 있어 일부러 여기서 멈춥니다.)
+- **dmg에 동봉된 `Uninstall.command`**: `.dmg`를 열면 앱 옆에 이 파일이
+  같이 들어있습니다. 더블클릭하면 터미널이 열리고, 확인 후 앱 종료 → 설정
+  삭제 → 임시 파일 삭제 → **`/Applications`의 앱 자체까지** 한 번에
+  삭제합니다. 완전히 정리하고 싶을 때 이쪽을 쓰면 됩니다.
+
 ## 개발 워크플로
 
 ### 백엔드만 빠르게 테스트하기 (Mac 불필요, 리눅스에서도 가능)
@@ -194,9 +223,13 @@ pytest
 - **`ClassicsPDFAssistant/`**: 전체 소스 트리를 작성했지만, 이 환경에는
   Xcode가 없어 컴파일/실행은 하지 못했습니다. 위 안내대로 Mac에서
   `xcodegen generate` 후 빌드하면 됩니다.
-- **`scripts/build_dmg.sh`, `backend/packaging/*`**: macOS 전용 스크립트라
-  이 환경에서 실행/검증이 불가능했습니다. 각 스크립트 주석에 무엇을
-  가정하는지 적어 두었습니다.
+- **`scripts/build_dmg.sh`, `scripts/Uninstall.command`, `backend/packaging/*`**:
+  macOS 전용 스크립트라 이 환경에서 실행/검증이 불가능했습니다 (`bash -n`으로
+  문법 오류만 확인). 각 스크립트 주석에 무엇을 가정하는지 적어 두었습니다.
+- **`.github/workflows/build-dmg.yml`**: GitHub의 macOS 러너에서 실행되는
+  CI 워크플로라 이 세션에서 실행 결과를 직접 확인하지는 못했습니다 (이
+  세션의 git 푸시 권한이 지정된 브랜치로만 제한되어 있어 태그를 직접 푸시해
+  트리거해 보는 것도 불가능했습니다) — YAML 문법만 검증했습니다.
 
 더 자세한 설계/제약 사항은 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)의
 "What's built vs. designed-only in this repository" 절을 참고하세요.
