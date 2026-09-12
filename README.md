@@ -30,6 +30,15 @@
 12. **깔끔한 제거(Clean Uninstall)** — 앱 메뉴의 "Uninstall…"로 설정과 임시
     파일을 정리하거나, dmg에 동봉된 `Uninstall.command`로 앱 자체까지 한
     번에 삭제. 내보낸 PDF 등 사용자 문서는 어느 쪽도 절대 건드리지 않음
+13. **OCR 신뢰도 요약** — 문서 전체 평균 신뢰도, 검토가 필요한 단어/페이지
+    수를 한눈에 보여주고, 신뢰도가 가장 낮은 페이지로 바로 이동
+14. **드래그앤드롭 가져오기** — 앱 창 아무 곳에나 PDF를 끌어다 놓으면 가져오기
+15. **폴더 감시(Watched Folder)** — 지정한 폴더에 새 PDF가 들어오면 자동으로
+    디스큐→OCR→내보내기까지 무인 처리 (배치 모드와 동일한 방식), 결과와
+    신뢰도를 설정 화면의 최근 활동 목록에서 확인
+16. **자동 업데이트** — Sparkle 기반 "Check for Updates…" (서명 키 생성과
+    appcast 호스팅을 직접 설정해야 실제로 동작 — 아래 "자동 업데이트
+    설정하기" 참고)
 
 ## 아키텍처 한눈에 보기
 
@@ -186,6 +195,33 @@ open ClassicsPDFAssistant.xcodeproj
   삭제 → 임시 파일 삭제 → **`/Applications`의 앱 자체까지** 한 번에
   삭제합니다. 완전히 정리하고 싶을 때 이쪽을 쓰면 됩니다.
 
+## 자동 업데이트 설정하기
+
+앱 메뉴에 "Check for Updates…"가 있고 [Sparkle](https://sparkle-project.org/)로
+동작하지만, **기본 상태로는 실제로 업데이트를 찾지 못합니다** —
+`Info.plist`의 `SUFeedURL`/`SUPublicEDKey`가 자리만 잡아둔 placeholder라서,
+직접 서명 키와 appcast(업데이트 목록 파일)를 준비해야 합니다. 한 번만
+해두면 됩니다:
+
+1. [Sparkle 릴리스 페이지](https://github.com/sparkle-project/Sparkle/releases)에서
+   `Sparkle-x.y.z.tar.xz`(소스 아님, 배포판)를 받아 압축을 풀면
+   `bin/generate_keys`, `bin/sign_update`, `bin/generate_appcast`가 들어있습니다.
+2. `bin/generate_keys`를 한 번 실행 — 개인키는 자동으로 macOS 키체인에
+   저장되고(**저장소에는 절대 커밋하지 마세요**), 공개키가 출력됩니다.
+3. 그 공개키를 `ClassicsPDFAssistant/ClassicsPDFAssistant/Resources/Info.plist`의
+   `SUPublicEDKey`에 붙여넣습니다.
+4. `appcast.xml`을 호스팅할 곳을 정합니다 (예: 이 저장소용 GitHub Pages,
+   또는 GitHub Release에 파일로 첨부). 그 URL을 `Info.plist`의 `SUFeedURL`에
+   설정합니다.
+5. 릴리스마다: 그동안 배포한 `.dmg` 파일들을 한 폴더에 모아두고
+   `./scripts/generate_appcast.sh /path/to/releases-folder --tools-dir /path/to/Sparkle/bin`
+   실행 → `appcast.xml`이 생성/갱신됩니다 (서명 포함). 이 파일과 dmg들을
+   호스팅 위치에 업로드하면 끝입니다.
+
+CI(`build-dmg.yml`)에는 이 과정을 자동화해 넣지 않았습니다 — 개인키를
+GitHub Actions 시크릿에 넣는 건 키를 소유한 사람이 직접 판단해서 할 일이라
+기본으로 켜두지 않았습니다.
+
 ## 개발 워크플로
 
 ### 백엔드만 빠르게 테스트하기 (Mac 불필요, 리눅스에서도 가능)
@@ -223,13 +259,20 @@ pytest
 - **`ClassicsPDFAssistant/`**: 전체 소스 트리를 작성했지만, 이 환경에는
   Xcode가 없어 컴파일/실행은 하지 못했습니다. 위 안내대로 Mac에서
   `xcodegen generate` 후 빌드하면 됩니다.
-- **`scripts/build_dmg.sh`, `scripts/Uninstall.command`, `backend/packaging/*`**:
-  macOS 전용 스크립트라 이 환경에서 실행/검증이 불가능했습니다 (`bash -n`으로
-  문법 오류만 확인). 각 스크립트 주석에 무엇을 가정하는지 적어 두었습니다.
+- **`scripts/build_dmg.sh`, `scripts/Uninstall.command`, `scripts/generate_appcast.sh`,
+  `backend/packaging/*`**: macOS 전용 스크립트라 이 환경에서 실행/검증이
+  불가능했습니다 (`bash -n`으로 문법 오류만 확인). 각 스크립트 주석에 무엇을
+  가정하는지 적어 두었습니다.
 - **`.github/workflows/build-dmg.yml`**: GitHub의 macOS 러너에서 실행되는
   CI 워크플로라 이 세션에서 실행 결과를 직접 확인하지는 못했습니다 (이
   세션의 git 푸시 권한이 지정된 브랜치로만 제한되어 있어 태그를 직접 푸시해
   트리거해 보는 것도 불가능했습니다) — YAML 문법만 검증했습니다.
+- **Sparkle 자동 업데이트 연동**: `project.yml`의 SPM 패키지 참조와
+  `CheckForUpdatesView.swift`의 API 사용은 Sparkle 2의 공개 문서를 따라
+  작성했지만, 실제 Xcode 빌드로 패키지 해석/컴파일을 확인해보지는
+  못했습니다. 폴더 감시(`FolderWatcher.swift`, `DispatchSource` 기반)와
+  드래그앤드롭도 마찬가지로 코드는 작성했지만 이 환경에서 실행 검증은
+  불가능했습니다.
 
 더 자세한 설계/제약 사항은 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)의
 "What's built vs. designed-only in this repository" 절을 참고하세요.

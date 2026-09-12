@@ -61,6 +61,10 @@ struct BatchDocumentResult: Codable, Identifiable {
     var status: String
     var outputs: FinalizeOutputs?
     var error: String?
+    /// Average OCR confidence across the document's pages — batch mode has
+    /// no interactive review step, so this is the only signal available for
+    /// "does this one need a closer look?" without opening it.
+    var meanConfidence: Double?
 }
 
 struct BatchResponse: BackendResponseEnvelope {

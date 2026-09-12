@@ -15,7 +15,15 @@ final class AppState: ObservableObject {
     @AppStorage("computeConfidence") var computeConfidence: Bool = true
     @AppStorage("defaultOutputDirectory") private var defaultOutputDirectoryPath: String = ""
 
+    // Watched-folder auto-processing settings.
+    @AppStorage("watchedFolderPath") private var watchedFolderPath: String = ""
+    @AppStorage("watchedFolderOutputPath") private var watchedFolderOutputPath: String = ""
+    @AppStorage("watchedFolderSeenFiles") private var watchedFolderSeenFilesData: Data = Data()
+    @Published var isWatchingFolder = false
+    @Published var watchedFolderActivity: [WatchedFolderActivityItem] = []
+
     private let backend = BackendService()
+    private let folderWatcher = FolderWatcher()
 
     var selectedLanguages: [String] {
         var langs: [String] = []
@@ -38,6 +46,85 @@ final class AppState: ObservableObject {
 
     var selectedDocument: DocumentItem? {
         documents.first { $0.id == selectedDocumentID }
+    }
+
+    // MARK: - Watched folder
+
+    var watchedFolderURL: URL? {
+        get { watchedFolderPath.isEmpty ? nil : URL(fileURLWithPath: watchedFolderPath) }
+        set { watchedFolderPath = newValue?.path ?? "" }
+    }
+
+    var watchedFolderOutputURL: URL {
+        get { watchedFolderOutputPath.isEmpty ? defaultOutputDirectory : URL(fileURLWithPath: watchedFolderOutputPath) }
+        set { watchedFolderOutputPath = newValue.path }
+    }
+
+    private var watchedFolderSeenFiles: [String] {
+        get { (try? JSONDecoder().decode([String].self, from: watchedFolderSeenFilesData)) ?? [] }
+        set {
+            // Cap growth so this doesn't accumulate forever in UserDefaults
+            // across months of unattended use — only recency matters here,
+            // since the point is just "don't reprocess this specific file
+            // again after a relaunch."
+            let capped = newValue.suffix(500)
+            watchedFolderSeenFilesData = (try? JSONEncoder().encode(Array(capped))) ?? Data()
+        }
+    }
+
+    /// Starts (or restarts) watching `watchedFolderURL`. No-op if that's unset.
+    func startWatchingFolder() {
+        guard let folder = watchedFolderURL else { return }
+        folderWatcher.start(folder: folder, alreadySeen: Set(watchedFolderSeenFiles)) { [weak self] url in
+            Task { @MainActor in
+                self?.processWatchedFile(url)
+            }
+        }
+        isWatchingFolder = true
+    }
+
+    func stopWatchingFolder() {
+        folderWatcher.stop()
+        isWatchingFolder = false
+    }
+
+    /// Runs the same unattended pipeline as batch mode (auto-detected crop/
+    /// deskew, no manual review) on one newly-discovered file, logging the
+    /// outcome to `watchedFolderActivity` for the settings UI to show.
+    private func processWatchedFile(_ url: URL) {
+        watchedFolderSeenFiles.append(url.path)
+
+        let activityID = UUID()
+        watchedFolderActivity.insert(
+            WatchedFolderActivityItem(id: activityID, fileName: url.lastPathComponent, date: Date(), status: .processing),
+            at: 0
+        )
+
+        Task {
+            let request = BatchRequest(
+                documents: [BatchDocumentSpec(inputPdf: url.path, outputDir: watchedFolderOutputURL.path, autoRename: true)],
+                languages: selectedLanguages,
+                options: FinalizeOptions(dpi: dpi, searchablePdf: true, plainText: false, pdfA: false, bw: false)
+            )
+            do {
+                let response: BatchResponse = try await backend.run(command: "batch", request: request) { _ in }
+                let outcome = response.documents.first
+                updateWatchedActivity(activityID) { item in
+                    if let outcome, outcome.status == "ok" {
+                        item.status = .done(meanConfidence: outcome.meanConfidence)
+                    } else {
+                        item.status = .failed(outcome?.error ?? "Unknown error")
+                    }
+                }
+            } catch {
+                updateWatchedActivity(activityID) { $0.status = .failed(error.localizedDescription) }
+            }
+        }
+    }
+
+    private func updateWatchedActivity(_ id: UUID, _ mutate: (inout WatchedFolderActivityItem) -> Void) {
+        guard let idx = watchedFolderActivity.firstIndex(where: { $0.id == id }) else { return }
+        mutate(&watchedFolderActivity[idx])
     }
 
     // MARK: - Import

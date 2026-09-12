@@ -184,7 +184,12 @@ Runs `analyze` → `ocr` → `finalize` per document inside one subprocess
 invocation, using only auto-detected crop/deskew values (no manual per-page
 review — batch mode is for unattended folder processing). Streams
 `document_progress` and `page_progress` NDJSON events on stderr; one summary
-JSON on stdout.
+JSON on stdout. Each successful document's result carries `mean_confidence`
+— the average of its pages' OCR confidence — since batch mode has no
+interactive review step to surface low-confidence pages any other way; a
+caller (the watched-folder feature, in particular) can flag documents below
+some threshold for the user to look at manually instead of trusting them
+blindly.
 
 **Request**
 ```jsonc
@@ -205,7 +210,7 @@ JSON on stdout.
   "status": "ok",
   "error": null,
   "documents": [
-    { "input_pdf": "/path/a.pdf", "status": "ok", "outputs": { "searchable_pdf": "...", "plain_text": "...", "pdf_a": null } },
+    { "input_pdf": "/path/a.pdf", "status": "ok", "outputs": { "searchable_pdf": "...", "plain_text": "...", "pdf_a": null }, "mean_confidence": 91.4 },
     { "input_pdf": "/path/b.pdf", "status": "error", "error": "..." }
   ]
 }

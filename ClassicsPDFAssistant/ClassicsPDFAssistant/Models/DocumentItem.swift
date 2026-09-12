@@ -44,6 +44,41 @@ final class DocumentItem: ObservableObject, Identifiable {
         MetadataFilename.render(author: selectedAuthor, title: selectedTitle, year: selectedYear)
             ?? displayName
     }
+
+    // MARK: - OCR confidence summary
+
+    /// Average of all pages' mean_confidence (backend-computed, from
+    /// `ocr`'s response), ignoring pages with no confidence data yet.
+    /// nil before any OCR has run.
+    var overallConfidence: Double? {
+        let values = ocrResults.values.map(\.meanConfidence).filter { $0 >= 0 }
+        guard !values.isEmpty else { return nil }
+        return values.reduce(0, +) / Double(values.count)
+    }
+
+    /// Total low-confidence words across all pages — the same
+    /// `Word.needsReview` flag the correction view highlights per page.
+    var lowConfidenceWordCount: Int {
+        pageOptions.reduce(0) { $0 + $1.words.filter(\.needsReview).count }
+    }
+
+    /// Pages with at least one word needing review, sorted by pageIndex.
+    var pagesNeedingReview: [Int] {
+        pageOptions
+            .filter { $0.words.contains(where: \.needsReview) }
+            .map(\.pageIndex)
+            .sorted()
+    }
+
+    /// The page with the lowest mean OCR confidence — the natural first
+    /// stop when proofing a long document. nil before OCR has run.
+    var worstPageIndex: Int? {
+        let withConfidence = ocrResults.filter { $0.value.meanConfidence >= 0 }
+        if let worst = withConfidence.min(by: { $0.value.meanConfidence < $1.value.meanConfidence }) {
+            return worst.key
+        }
+        return ocrResults.keys.min()
+    }
 }
 
 /// Swift-side mirror of `render_filename`/`sanitize_filename` in

@@ -5,6 +5,7 @@ import UniformTypeIdentifiers
 struct ContentView: View {
     @EnvironmentObject private var appState: AppState
     @State private var isImporterPresented = false
+    @State private var isDropTargeted = false
 
     var body: some View {
         NavigationSplitView {
@@ -29,6 +30,24 @@ struct ContentView: View {
         .onReceive(NotificationCenter.default.publisher(for: .importPDFRequested)) { _ in
             isImporterPresented = true
         }
+        // Drag a PDF (or several) onto the window from Finder anywhere —
+        // the sidebar and the detail pane both accept drops, not just the
+        // empty state, so this works whether or not a document is selected.
+        .dropDestination(for: URL.self) { urls, _ in
+            let pdfURLs = urls.filter { $0.pathExtension.lowercased() == "pdf" }
+            guard !pdfURLs.isEmpty else { return false }
+            appState.importDocuments(at: pdfURLs)
+            return true
+        } isTargeted: { isDropTargeted = $0 }
+        .overlay {
+            if isDropTargeted {
+                RoundedRectangle(cornerRadius: 12)
+                    .strokeBorder(Color.accentColor, lineWidth: 3)
+                    .background(Color.accentColor.opacity(0.05))
+                    .allowsHitTesting(false)
+                    .padding(4)
+            }
+        }
     }
 
     private var emptyState: some View {
@@ -38,6 +57,9 @@ struct ContentView: View {
                 .foregroundStyle(.secondary)
             Text("Import a scanned PDF to begin")
                 .font(.title3)
+            Text("or drag a PDF here")
+                .font(.caption)
+                .foregroundStyle(.secondary)
             Button("Import PDF…") { isImporterPresented = true }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

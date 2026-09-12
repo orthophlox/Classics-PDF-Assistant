@@ -150,3 +150,4 @@ def test_batch_process_handles_multiple_documents(tmp_path, synthetic_book_pdf):
     assert len(results) == 1
     assert results[0]["status"] == "ok"
     assert results[0]["outputs"]["searchable_pdf"] is not None
+    assert results[0]["mean_confidence"] >= 0

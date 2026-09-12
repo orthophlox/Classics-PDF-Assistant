@@ -11,6 +11,17 @@ settings:
     MACOSX_DEPLOYMENT_TARGET: "13.0"
     ENABLE_HARDENED_RUNTIME: YES
 
+# Sparkle powers "Check for Updates…" (App/ClassicsPDFAssistantApp.swift).
+# See README.md "자동 업데이트 설정하기" before shipping a real release —
+# this needs a signing keypair generated on your Mac (never committed to
+# the repo) and an appcast.xml hosted somewhere reachable; without that
+# setup the menu item is present but SUFeedURL/SUPublicEDKey in Info.plist
+# are placeholders and update checks will just fail harmlessly.
+packages:
+  Sparkle:
+    url: https://github.com/sparkle-project/Sparkle
+    from: 2.6.4
+
 targets:
   ClassicsPDFAssistant:
     type: application
@@ -20,6 +31,8 @@ targets:
         excludes:
           - "Resources/Info.plist"
           - "Resources/ClassicsPDFAssistant.entitlements"
+    dependencies:
+      - package: Sparkle
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.classicspdfassistant.app

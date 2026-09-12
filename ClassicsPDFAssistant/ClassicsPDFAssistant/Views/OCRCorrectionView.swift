@@ -11,6 +11,8 @@ struct OCRCorrectionView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            ConfidenceOverviewBar(document: document, selectedPageIndex: $selectedPageIndex)
+
             Picker("Page", selection: $selectedPageIndex) {
                 ForEach(document.pages) { page in
                     Text("Page \(page.pageIndex + 1)\(reviewBadge(for: page.pageIndex))").tag(page.pageIndex)
@@ -42,6 +44,45 @@ struct OCRCorrectionView: View {
 
     private func wordsNeedingReview(_ pageIndex: Int) -> [Word] {
         document.pageOptions.first { $0.pageIndex == pageIndex }?.words.filter(\.needsReview) ?? []
+    }
+}
+
+/// The OCR confidence summary for this document: overall average, how many
+/// words/pages need a look, and a one-click jump to the worst page —
+/// answers "does this document need a closer look?" without opening every
+/// page, especially useful on a long document.
+private struct ConfidenceOverviewBar: View {
+    @ObservedObject var document: DocumentItem
+    @Binding var selectedPageIndex: Int
+
+    var body: some View {
+        HStack(spacing: 16) {
+            if let overall = document.overallConfidence {
+                Label("\(Int(overall))% avg confidence", systemImage: "gauge.medium")
+                    .foregroundStyle(overall < Word.lowConfidenceThreshold ? .red : .primary)
+            }
+
+            if document.lowConfidenceWordCount > 0 {
+                Text("\(document.lowConfidenceWordCount) words · \(document.pagesNeedingReview.count) pages need review")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else {
+                Text("No low-confidence words")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+
+            if let worst = document.worstPageIndex, worst != selectedPageIndex {
+                Button("Jump to Lowest-Confidence Page") {
+                    selectedPageIndex = worst
+                }
+                .font(.caption)
+            }
+        }
+        .padding(.horizontal)
+        .padding(.top, 8)
     }
 }
 

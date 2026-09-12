@@ -38,17 +38,25 @@ for why, if you're considering Mac App Store distribution later.
 
 ## Source layout
 
-- `App/` — app entry point, `AppState` (the single source of truth for
-  imported documents and their pipeline status), and `UninstallFlow` (the
-  App-menu "Uninstall…" command; see `../scripts/Uninstall.command` for the
-  standalone script bundled in the `.dmg` that also removes the app itself).
+- `App/` — app entry point (which also wires up Sparkle's
+  `SPUStandardUpdaterController` — see `../docs/ARCHITECTURE.md` "Auto-update
+  (Sparkle)" and the root README's "자동 업데이트 설정하기" before it'll
+  actually find updates), `CheckForUpdatesView` (the Sparkle menu-item
+  recipe), `AppState` (the single source of truth for imported documents,
+  their pipeline status, and the watched-folder feature's settings/activity
+  log), and `UninstallFlow` (the App-menu "Uninstall…" command; see
+  `../scripts/Uninstall.command` for the standalone script bundled in the
+  `.dmg` that also removes the app itself).
 - `Models/` — Codable structs mirroring `../docs/JSON_PROTOCOL.md`, plus
-  app-local state (`DocumentItem`, `DocumentStatus`).
+  app-local state (`DocumentItem`, `DocumentStatus`, `WatchedFolderActivityItem`).
 - `Backend/` — `BackendService` (the `Process`/JSON subprocess wrapper) and
   `BackendLocator` (bundled vs. dev-fallback executable resolution).
 - `Services/` — `ZoteroService`, a standalone Swift-only (no Python backend
   involved) integration with a locally running Zotero desktop app; see its
   file header and `../docs/ARCHITECTURE.md` "Zotero handoff" before editing
-  the request shapes, since it speaks an unofficial protocol.
+  the request shapes, since it speaks an unofficial protocol. Also
+  `FolderWatcher`, the `DispatchSource`-based watched-folder implementation
+  (see "Watched-folder auto-processing" in `../docs/ARCHITECTURE.md`).
 - `Views/` — one view per pipeline stage, routed by `DocumentItem.status`
-  in `ContentView`. See file-level doc comments for what each does.
+  in `ContentView` (which also handles drag-and-drop import). See
+  file-level doc comments for what each does.

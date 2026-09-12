@@ -45,5 +45,24 @@
 			<string>Alternate</string>
 		</dict>
 	</array>
+	<!--
+	Sparkle auto-update (see App/ClassicsPDFAssistantApp.swift and
+	README.md "자동 업데이트 설정하기"). Both values below are placeholders:
+	- SUFeedURL must point at an appcast.xml you host yourself (e.g. GitHub
+	  Pages for this repo, or a raw file URL) — update checks just fail
+	  quietly against this placeholder until you set a real one.
+	- SUPublicEDKey is the public half of a signing keypair you generate
+	  once on your own Mac (Sparkle's `generate_keys` tool, which stores the
+	  private half in your Keychain — it must never be committed to this
+	  repo). Paste the public key it prints here.
+	-->
+	<key>SUFeedURL</key>
+	<string>https://example.com/classics-pdf-assistant/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string></string>
+	<key>SUEnableAutomaticChecks</key>
+	<true/>
+	<key>SUScheduledCheckInterval</key>
+	<integer>86400</integer>
 </dict>
 </plist>

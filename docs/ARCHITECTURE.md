@@ -4,7 +4,9 @@ Classics PDF Assistant is a macOS-native SwiftUI app for turning scanned PDFs of
 classical texts (mixed Ancient Greek / Latin / English) into deskewed, cropped,
 searchable PDFs — with an OCR-correction pass, plain-text/PDF-A export, batch
 processing, bibliography-based auto-rename, multi-region crop detection for
-critical editions, and a one-click handoff to Zotero.
+critical editions, a one-click handoff to Zotero, drag-and-drop import, a
+watched-folder auto-processing mode, an OCR confidence summary, and
+Sparkle-based auto-updates.
 
 ## Two-process design
 
@@ -179,6 +181,65 @@ tradeoff — zero-setup local integration vs. the officially documented but
 credential-requiring Web API — was a deliberate choice; see the code comment
 at the top of `ZoteroService.swift` before changing it.
 
+## OCR confidence summary
+
+`ocr`'s per-page `mean_confidence` (already computed for the correction
+view's per-word highlighting) is aggregated one level further in two
+places: `DocumentItem.overallConfidence`/`lowConfidenceWordCount`/
+`worstPageIndex` (Swift-side, for the interactive flow's
+`OCRCorrectionView` header — an average, a total flagged-word count, and a
+one-click jump to the worst page) and `pipeline.batch_process`'s
+per-document `mean_confidence` field (backend-side, since batch mode has no
+interactive review step at all — see docs/JSON_PROTOCOL.md's `batch`
+response). No new OCR work: this is purely aggregating numbers the pipeline
+already produces.
+
+## Drag-and-drop import
+
+`ContentView` accepts a plain SwiftUI `.dropDestination(for: URL.self)`
+covering the whole window (sidebar and detail pane both), filtering to
+`.pdf` and handing matches to the same `AppState.importDocuments(at:)` the
+File > Import menu command and the fileImporter panel already use — one
+entry point, three ways in.
+
+## Watched-folder auto-processing
+
+A folder can be designated (Settings > Watched Folder) for hands-off
+processing: `FolderWatcher.swift` opens it with a `DispatchSourceFileSystemObject`
+(kqueue-based — no polling loop) and reports each newly-appeared `.pdf`
+once its file size has stabilized across a short delay, guarding against
+handing the backend a still-being-written file (a scanner mid-copy, for
+instance). Each reported file goes through `AppState.processWatchedFile`,
+which calls the *same* `batch` command batch mode itself uses (a
+single-document array) — auto-detected crop/deskew, auto-rename, no manual
+review, matching the "unattended folder processing" semantics `batch` was
+already designed for rather than inventing a second pipeline path. Already-
+processed file paths persist in `UserDefaults` (capped at the most recent
+500) so a relaunch doesn't reprocess a folder's entire backlog. Outcomes
+(including the batch result's `mean_confidence` — see above) land in
+`AppState.watchedFolderActivity`, shown as a short recent-activity log in
+Settings, since there's no per-document review step to surface a problem
+any other way.
+
+## Auto-update (Sparkle)
+
+`SPUStandardUpdaterController` (the standard Sparkle 2 SwiftUI integration —
+`App/CheckForUpdatesView.swift` follows Sparkle's own documented Combine-
+based recipe for the menu item's enabled state) is wired up in
+`ClassicsPDFAssistantApp.swift`, checking `Info.plist`'s `SUFeedURL` on the
+schedule `SUScheduledCheckInterval` sets. This is **mechanism only** by
+default: `SUFeedURL` and `SUPublicEDKey` in `Info.plist` are placeholders,
+so update checks fail harmlessly until you do the one-time setup described
+in `README.md` "자동 업데이트 설정하기" — generating a signing keypair
+(Sparkle's `generate_keys`, which stores the private half in Keychain and
+must never be committed to this repo), hosting an `appcast.xml`
+(`scripts/generate_appcast.sh` builds one from a folder of released
+`.dmg`s), and pointing `SUFeedURL` at it. This is deliberately not wired
+into CI (`.github/workflows/build-dmg.yml`): automating release signing
+would mean putting a private key into a GitHub Actions secret, which is a
+call for whoever actually owns that key to make deliberately, not something
+to default into.
+
 ## What's built vs. designed-only in this repository
 
 - `backend/` — implemented and tested in this repo's Linux dev sandbox
@@ -189,6 +250,10 @@ at the top of `ZoteroService.swift` before changing it.
 - `ClassicsPDFAssistant/` — full SwiftUI source tree, written to match
   `docs/JSON_PROTOCOL.md` exactly, but not compiled/run here. Requires Xcode
   on macOS; see `ClassicsPDFAssistant/README.md` for `xcodegen generate` setup.
+  The Sparkle SPM dependency in particular has never been resolved by an
+  actual Xcode build in this sandbox — `project.yml`'s package reference and
+  `CheckForUpdatesView.swift`'s API usage are written to match Sparkle 2's
+  documented public API, not verified against a real build.
 - `backend/packaging/` — PyInstaller spec and build scripts are written and
   documented, but bundling an actual Tesseract binary (resolving dylib
   dependencies via `otool`/`install_name_tool`) can only be done and verified

@@ -285,7 +285,19 @@ def batch_process(
             outputs = finalize(
                 input_pdf, basename, output_dir, options, page_options, on_progress=on_progress
             )
-            results.append({"input_pdf": input_pdf, "status": "ok", "outputs": outputs})
+            # Aggregate per-page mean_confidence into one document-level figure —
+            # batch mode has no interactive review step, so this is the only
+            # signal the caller gets for "does this document need a closer look."
+            page_confidences = [r.mean_confidence for r in ocr_results if r.mean_confidence >= 0]
+            document_confidence = sum(page_confidences) / len(page_confidences) if page_confidences else -1.0
+            results.append(
+                {
+                    "input_pdf": input_pdf,
+                    "status": "ok",
+                    "outputs": outputs,
+                    "mean_confidence": document_confidence,
+                }
+            )
         except Exception as exc:  # noqa: BLE001 - a per-document failure must not abort the batch
             results.append({"input_pdf": input_pdf, "status": "error", "error": str(exc)})
         finally:
